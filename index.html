@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas - Universitario</title>
+    <!-- Framework Frontend: Vue.js 3 vía CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent-pink: #ec4899;
+            --accent-cyan: #06b6d4;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.15);
+            --danger: #f43f5e;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body {
+            background-color: #030712;
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 30px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* FONDO ANIMADO CON MOVIMIENTO FLUIDO Y VIVO */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            background: linear-gradient(135deg, #030712 0%, #1e1b4b 50%, #0f172a 100%);
+            overflow: hidden;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.5;
+            animation: floatOrb 10s infinite alternate ease-in-out;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--accent-cyan);
+            top: -100px;
+            left: -100px;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: var(--accent-pink);
+            bottom: -150px;
+            right: -150px;
+            animation-delay: -5s;
+        }
+
+        .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: var(--primary);
+            top: 40%;
+            left: 50%;
+            animation-delay: -3s;
+        }
+
+        @keyframes floatOrb {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(60px, 50px) scale(1.15); }
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 35px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            position: relative;
+            z-index: 10;
+        }
+        
+        h1, h2, h3 { color: var(--text-main); margin-bottom: 20px; font-weight: 700; }
+        
+        /* Formularios y Autenticación */
+        .auth-container {
+            max-width: 420px;
+            margin: 60px auto;
+            padding: 35px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+        }
+
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(3, 7, 18, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--accent-pink));
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: transform 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger { background: linear-gradient(135deg, #f43f5e, #be123c); box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4); }
+        .btn-success { background: linear-gradient(135deg, #10b981, #047857); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: var(--text-main); border: 1px solid var(--border); box-shadow: none; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* Panel Superior */
+        .user-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        
+        /* Filtros */
+        .filters { display: flex; gap: 12px; margin-bottom: 25px; flex-wrap: wrap; }
+        .filters input, .filters select { flex: 1; min-width: 200px; }
+
+        /* Tarjetas de Tareas Vivas */
+        .task-card {
+            background: rgba(3, 7, 18, 0.5);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--primary);
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .task-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        .task-card.Pendiente { border-left-color: var(--warning); }
+        .task-card.En_Progreso { border-left-color: var(--accent-cyan); }
+        .task-card.Completada { border-left-color: var(--success); background-color: rgba(16, 185, 129, 0.08); opacity: 0.8; }
+        
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .task-title { font-size: 1.1rem; font-weight: bold; }
+        
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; color: white; text-transform: uppercase; }
+        .badge.Alta { background: var(--danger); }
+        .badge.Media { background: var(--warning); color: #000; }
+        .badge.Baja { background: #64748b; }
+        
+        .task-actions { display: flex; gap: 8px; margin-top: 15px; }
+        .task-actions button { padding: 6px 14px; font-size: 0.85rem; }
+
+        .form-section { background: rgba(3, 7, 18, 0.6); padding: 22px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <!-- FONDO FLUIDO CON MOVIMIENTO -->
+    <div class="bg-animation">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div id="app" class="container">
+
+        <!-- 1. VISTA DE AUTENTICACIÓN (REGISTRO / LOGIN) -->
+        <div v-if="!usuarioActual" class="auth-container">
+            <h2 style="text-align: center; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {{ modoRegistro ? 'Crear Cuenta' : 'Iniciar Sesión' }}
+            </h2>
+            <form @submit.prevent="modoRegistro ? registrar() : iniciarSesion()">
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" v-model="formAuth.email" placeholder="usuario@correo.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" v-model="formAuth.password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" style="width: 100%; margin-top: 10px;">{{ modoRegistro ? 'Registrarse' : 'Ingresar' }}</button>
+                <div style="text-align: center; margin-top: 18px;">
+                    <button type="button" @click="modoRegistro = !modoRegistro" style="background: none; color: var(--accent-cyan); padding: 0; box-shadow: none; text-decoration: underline;">
+                        {{ modoRegistro ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate aquí' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 2. VISTA PRINCIPAL (DASHBOARD DE TAREAS) -->
+        <div v-else>
+            <div class="user-bar">
+                <div>
+                    <h1>Gestor de Tareas</h1>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Bienvenido(a), <strong style="color: var(--accent-cyan);">{{ usuarioActual.email }}</strong></p>
+                </div>
+                <button @click="cerrarSesion" class="btn-danger">Cerrar Sesión</button>
+            </div>
+
+            <!-- Formulario de Creación / Edición de Tareas -->
+            <div class="form-section">
+                <h3>{{ editando ? 'Editar Tarea Existente' : 'Registrar Nueva Tarea' }}</h3>
+                <form @submit.prevent="guardarTarea" style="margin-top: 15px;">
+                    <div class="form-group">
+                        <label>Título de la tarea</label>
+                        <input type="text" v-model="nuevaTarea.titulo" placeholder="Ej: Entregar proyecto frontend" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea v-model="nuevaTarea.descripcion" rows="2" placeholder="Detalles de la tarea..." required></textarea>
+                    </div>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Fecha de Vencimiento</label>
+                            <input type="date" v-model="nuevaTarea.fecha" required>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Prioridad</label>
+                            <select v-model="nuevaTarea.prioridad">
+                                <option value="Baja">Baja</option>
+                                <option value="Media">Media</option>
+                                <option value="Alta">Alta</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px;">
+                            <label>Estado</label>
+                            <select v-model="nuevaTarea.estado">
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="En_Progreso">En Progreso</option>
+                                <option value="Completada">Completada</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button type="submit" class="btn-success">{{ editando ? 'Actualizar Tarea' : 'Guardar Tarea' }}</button>
+                        <button type="button" class="btn-secondary" v-if="editando" @click="cancelarEdicion" style="margin-left: 8px;">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Filtros y Búsqueda -->
+            <h2>Lista de Tareas</h2>
+            <div class="filters">
+                <input type="text" v-model="busqueda" placeholder="Buscar por título o descripción...">
+                <select v-model="filtroEstado">
+                    <option value="">Filtrar por Estado (Todos)</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="En_Progreso">En Progreso</option>
+                    <option value="Completada">Completada</option>
+                </select>
+                <select v-model="filtroPrioridad">
+                    <option value="">Filtrar por Prioridad (Todas)</option>
+                    <option value="Baja">Baja</option>
+                    <option value="Media">Media</option>
+                    <option value="Alta">Alta</option>
+                </select>
+            </div>
+
+            <!-- Listado de Tareas -->
+            <div v-if="tareasFiltradas.length === 0" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                No se encontraron tareas registradas.
+            </div>
+
+            <div v-for="tarea in tareasFiltradas" :key="tarea.id" :class="['task-card', tarea.estado]">
+                <div class="task-header">
+                    <span class="task-title" :style="{ textDecoration: tarea.estado === 'Completada' ? 'line-through' : 'none' }">{{ tarea.titulo }}</span>
+                    <div>
+                        <span :class="['badge', tarea.prioridad]">{{ tarea.prioridad }}</span>
+                        <span style="font-size: 0.85rem; margin-left: 8px; font-weight: bold; color: var(--text-muted);">[{{ tarea.estado.replace('_', ' ') }}]</span>
+                    </div>
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 8px;">{{ tarea.descripcion }}</p>
+                <small style="color: var(--accent-cyan);">📅 Vence el: {{ tarea.fecha }}</small>
+                
+                <div class="task-actions">
+                    <button @click="marcarCompletada(tarea)" class="btn-success" v-if="tarea.estado !== 'Completada'">Marcar como Completada</button>
+                    <button @click="prepararEdicion(tarea)" class="btn-secondary">Editar</button>
+                    <button @click="eliminarTarea(tarea.id)" class="btn-danger">Eliminar</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Lógica de Vue.js 3 -->
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    usuarioActual: JSON.parse(localStorage.getItem('usuarioSesion')) || null,
+                    modoRegistro: false,
+                    formAuth: { email: '', password: '' },
+                    tareas: JSON.parse(localStorage.getItem('tareasGuardadas')) || [],
+                    nuevaTarea: { id: null, titulo: '', descripcion: '', fecha: '', prioridad: 'Media', estado: 'Pendiente' },
+                    editando: false,
+                    busqueda: '',
+                    filtroEstado: '',
+                    filtroPrioridad: ''
+                }
+            },
+            computed: {
+                tareasFiltradas() {
+                    return this.tareas.filter(t => {
+                        const esDeEsteUsuario = t.usuarioEmail === this.usuarioActual?.email;
+                        const coincideBusqueda = t.titulo.toLowerCase().includes(this.busqueda.toLowerCase()) || 
+                                               t.descripcion.toLowerCase().includes(this.busqueda.toLowerCase());
+                        const coincideEstado = this.filtroEstado === '' || t.estado === this.filtroEstado;
+                        const coincidePrioridad = this.filtroPrioridad === '' || t.prioridad === this.filtroPrioridad;
+                        return esDeEsteUsuario && coincideBusqueda && coincideEstado && coincidePrioridad;
+                    });
+                }
+            },
+            methods: {
+                registrar() {
+                    localStorage.setItem('user_' + this.formAuth.email, JSON.stringify(this.formAuth));
+                    alert('¡Cuenta creada con éxito! Ahora inicia sesión.');
+                    this.modoRegistro = false;
+                    this.formAuth = { email: '', password: '' };
+                },
+                iniciarSesion() {
+                    const u = JSON.parse(localStorage.getItem('user_' + this.formAuth.email));
+                    if (u && u.password === this.formAuth.password) {
+                        this.usuarioActual = u;
+                        localStorage.setItem('usuarioSesion', JSON.stringify(u));
+                    } else {
+                        alert('Correo o contraseña incorrectos.');
+                    }
+                },
+                cerrarSesion() {
+                    this.usuarioActual = null;
+                    localStorage.removeItem('usuarioSesion');
+                },
+                guardarTarea() {
+                    if (this.editando) {
+                        const index = this.tareas.findIndex(t => t.id === this.nuevaTarea.id);
+                        if (index !== -1) {
+                            this.tareas[index] = { ...this.nuevaTarea };
+                        }
+                        this.editando = false;
+                    } else {
+                        const nueva = { 
+                            ...this.nuevaTarea, 
+                            id: Date.now(), 
+                            usuarioEmail: this.usuarioActual.email 
+                        };
+                        this.tareas.push(nueva);
+                    }
+                    this.sincronizarStorage();
+                    this.resetFormulario();
+                },
+                marcarCompletada(tarea) {
+                    tarea.estado = 'Completada';
+                    this.sincronizarStorage();
+                },
+                prepararEdicion(tarea) {
+                    this.nuevaTarea = { ...tarea };
+                    this.editando = true;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+                cancelarEdicion() {
+                    this.resetFormulario();
+                    this.editando = false;
+                },
+                eliminarTarea(id) {
+                    if (confirm('¿Estás seguro de eliminar esta tarea?')) {
+                        this.tareas = this.tareas.filter(t => t.id !== id);
+                        this.sincronizarStorage();
+                    }
+                },
+                resetFormulario() {
+                    this.nuevaTarea = { id: null, titulo: '', descripcion: '', fecha: '', prioridad: 'Media', estado: 'Pendiente' };
+                },
+                sincronizarStorage() {
+                    localStorage.setItem('tareasGuardadas', JSON.stringify(this.tareas));
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
